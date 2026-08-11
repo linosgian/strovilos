@@ -1,7 +1,5 @@
 main/__pycache__
-manage.py
 strovilos/__pycache__
-main/migrations
 db.sqlite3
 strovilos/secret_settings.py
 *.pyc
