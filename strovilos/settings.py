@@ -8,8 +8,10 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Default ROOT_DIR — overridden by secret_settings in all real deployments
+# Defaults — all overridden by secret_settings in real deployments
 ROOT_DIR = os.path.dirname(BASE_DIR)
+DEBUG = True
+ALLOWED_HOSTS = []
 
 from .secret_settings import *
 from django.utils.translation import gettext_lazy as _
@@ -31,11 +33,6 @@ STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 
 
-DEBUG = True
-if DEBUG:
-    ALLOWED_HOSTS = []
-else:
-    ALLOWED_HOSTS = ['strovilos.gr','www.strovilos.gr']
 
 
 # Application definition
