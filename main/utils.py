@@ -8,8 +8,11 @@ def get_final_context(context, form_errors=None):
 	"""
 	logo = redis_cache.get('logo')
 	if not logo:
-		logo = UpImages.objects.get(image_title="Logo")
-		redis_cache.set('logo', logo)	
+		try:
+			logo = UpImages.objects.get(image_title="Logo")
+			redis_cache.set('logo', logo)
+		except UpImages.DoesNotExist:
+			logo = None
 
 	categories = redis_cache.get('categories')
 	if not categories:

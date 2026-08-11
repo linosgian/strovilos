@@ -5,14 +5,16 @@ Django settings for strovilos project.
 """
 import os
 from .secret_settings import *
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 ########################################################################################################
 ######################################## Basic/Custom Settings #########################################
 ########################################################################################################
 #TODO: DEBUG / EMAIL BACKEND / COMPRESS
 
-# Custom Variables 
+# Custom Variables
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 POSTS_PER_PAGE = 10
 TITLE_COUNT = 10
 DESC_COUNT = 28
@@ -39,6 +41,7 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
+    'anymail',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -47,21 +50,17 @@ INSTALLED_APPS = [
     'main',
     'grappelli',
     'django.contrib.admin',
-    'ckeditor_uploader',
-    'ckeditor',
-    'django_batch_uploader',
-    'huey.contrib.djhuey',
+    'tinymce',
     'compressor',
 ]
 
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'main.middleware.AdminLocaleURLMiddleware',
@@ -79,10 +78,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.request',
                 'django.template.context_processors.static',
                 'main.context_processors.global_settings',
-		        'django.core.context_processors.request',
             ],
         },
     },
@@ -122,15 +119,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Cache Settings
 
-CACHE_PREFIX = 'PostViews_'
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://:'+ CACHE_PASSWORD +'@localhost:6379',
-        'OPTIONS': {
-            'CLIENT_CLASS' : 'django_redis.client.DefaultClient',
-            'IGNORE_EXCEPTIONS': True,
-        }
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
@@ -159,12 +150,6 @@ LOGGING = {
             'filename': os.path.join(ROOT_DIR, 'log/fail2ban.log'),
             'formatter' : 'standard',
         },
-        'huey_file': {
-            'level': 'WARN',
-        'class': 'logging.FileHandler',
-            'filename': os.path.join(ROOT_DIR, 'log/huey_debug.log'),
-            'formatter' : 'standard',
-        },
         'console':{
             'level':'INFO',
             'class':'logging.StreamHandler',
@@ -186,15 +171,10 @@ LOGGING = {
             'handlers': ['file'],
             'level' : 'WARN',
         },
-        'huey.consumer': {
-            'handlers': ['huey_file'],
-            'level': 'WARN',
-            'propagate': True,
-       },
-       'fail2ban': {
+        'fail2ban': {
             'handlers': ['fail2ban_file'],
             'level': 'ERROR',
-       }
+       },
     },
 }
 
@@ -202,7 +182,7 @@ LOGGING = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = None 
+TIME_ZONE = 'Europe/Athens'
 
 USE_I18N = True
 
@@ -232,74 +212,35 @@ COMPRESS_CSS_FILTERS = [
 
 # Uncomment this for testing
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_BACKEND = "sgbackend.SendGridBackend"
-SENDGRID_USER = 'linosgian'
-DEFAULT_FROM_EMAIL = SENDGRID_USER + '@sendgrip.com'
+EMAIL_BACKEND = 'anymail.backends.sendgrid.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@strovilos.gr'
 DEFAULT_TO_EMAIL = 'kgstrovilos@gmail.com'
 
-# Huey Consumer
-
-HUEY = {
-    'name': 'main',
-    'connection' : { 'password' : CACHE_PASSWORD,},
-    'consumer': {'workers': 1, 'worker_type': 'thread'},
+ANYMAIL = {
+    'SENDGRID_API_KEY': SENDGRID_API_KEY,
 }
 
-# Grappeli  
+# Grappeli
 
 # Enable this to switch between users in admin
 # GRAPPELLI_SWITCH_USER = True
 GRAPPELLI_ADMIN_TITLE = 'Επεξεργασία Ιστοσελίδας'
 
-# CKEditor 
+# TinyMCE
 
-CKEDITOR_JQUERY_URL = '//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'
-CKEDITOR_UPLOAD_PATH = "images/"
-CKEDITOR_CONFIGS = {
-    
-    'default': {
-        'skin': 'office2013',
-        'toolbar_Basic': [
-            ['Source', '-', 'Bold', 'Italic']
-        ],
-        'toolbar_YourCustomToolbarConfig': [
-            {'name': 'tools', 'items': ['Maximize']}, 
-            {'name': 'clipboard', 'items': ['PasteText', 'PasteFromWord', '-', 'Undo', 'Redo']},
-            {'name': 'editing', 'items': ['Find', 'Replace' ]},
-            '/',
-            {'name': 'paragraph',
-             'items': ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote',  '-',
-                       'JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock', '-', 'Image', 'Link', 'Unlink', 'Anchor', 'HorizontalRule' ]},
-            '/',
-            {'name': 'styles', 'items': ['Bold', 'Italic', 'Underline', 'RemoveFormat', 'Styles', 'Format', 'Font', 'FontSize', 'Centerizer']},
-        ],
-        'toolbar': 'YourCustomToolbarConfig',
-         'toolbarGroups': [{ 'name': 'document', 'groups': [ 'mode', 'document', 'doctools' ] }],
-         'height': 291,
-         'width': 800,
-         'filebrowserWindowHeight': 725,
-         'filebrowserWindowWidth': 940,
-         'toolbarCanCollapse': True,
-         'mathJaxLib': '//cdn.mathjax.org/mathjax/2.2-latest/MathJax.js?config=TeX-AMS_HTML',
-        'tabSpaces': 4,
-        'extraPlugins': ','.join(
-            [
-                'div',
-                'autolink',
-                'autoembed',
-                'embedsemantic',
-                #'autogrow',
-                #'devtools',
-                'widget',
-                'lineutils',
-                'clipboard',
-                'dialog',
-                'dialogui',
-                'elementspath',
-                'wordcount',
-                'centerizer',
-            ]),
-        'removePlugins': 'smiley',
-        'disableNativeSpellChecker' : False,
-    }
+TINYMCE_DEFAULT_CONFIG = {
+    'language': 'el',
+    'height': 500,
+    'menubar': False,
+    'plugins': 'image link lists paste wordcount anchor hr',
+    'toolbar': (
+        'undo redo | bold italic underline removeformat | '
+        'link anchor | image hr | '
+        'bullist numlist | wordcount'
+    ),
+    'images_upload_url': '/tinymce/upload/',
+    'images_upload_credentials': True,
+    'image_advtab': True,
+    'paste_as_text': False,
+    'content_style': 'body { font-family: Georgia, serif; font-size: 16px; }',
 }

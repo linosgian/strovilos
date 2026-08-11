@@ -1,18 +1,21 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse, HttpResponseRedirect, Http404, JsonResponse
 from django.db.models import Q
 from django.db import transaction, IntegrityError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import user_passes_test, login_required
 from django.views.decorators.http import require_safe
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from django.conf import settings as django_settings
+from django.db.models import F
+from django.core.mail import EmailMultiAlternatives
 
-from django_batch_uploader.views import AdminBatchUploadView
 from .forms import ContactForm
 from .models import *
-from .tasks import increasecnt, async_mail
 from .utils import get_final_context
 from strovilos import settings
 import logging, os, json
@@ -27,7 +30,7 @@ def index(request, category_id=None):
 	error/success message output when
 	submiting the email form 
 	"""
-	if request.is_ajax():
+	if request.headers.get('x-requested-with') == 'XMLHttpRequest':
 		if category_id:
 			posts = Posts.objects.filter(category=category_id).exclude(status='d').order_by('-viewcount')
 			main_title = Category.objects.get(pk=category_id)
@@ -50,7 +53,14 @@ def index(request, category_id=None):
 			if honeypot:
 				logger.warn("Possible SpamBot Detected")
 				return HttpResponseRedirect('/')			
-			async_mail(form)
+			msg = EmailMultiAlternatives(
+				subject=form.cleaned_data['subject'],
+				body=form.cleaned_data['message'],
+				from_email=form.cleaned_data['name'] + '<' + django_settings.DEFAULT_FROM_EMAIL + '>',
+				to=[django_settings.DEFAULT_TO_EMAIL],
+				headers={'Reply-To': form.cleaned_data['email']},
+			)
+			msg.send()
 			messages.success(request, 'Επιτυχής Αποστολή. Σας Ευχαριστούμε.')
 			return HttpResponseRedirect('/')
 		else:
@@ -91,17 +101,21 @@ def articles(request, post_id):
 	if main_post.status == 'd' and not request.user.is_staff:
 		return HttpResponseRedirect('/')
 	latest_posts = Posts.objects.exclude(Q(pk=main_post.id) | Q(status='d'))[:4]
-	try:
-		next_post = main_post.get_next_by_pub_date(category=main_post.category)
-		while next_post.status == 'd':
-			next_post = next_post.get_next_by_pub_date(category=main_post.category)
-	except:
+	if main_post.pub_date is not None:
+		next_post = Posts.objects.filter(
+			category=main_post.category, status='p'
+		).filter(
+			Q(pub_date__gt=main_post.pub_date) |
+			Q(pub_date=main_post.pub_date, pk__gt=main_post.pk)
+		).order_by('pub_date', 'pk').first()
+		previous_post = Posts.objects.filter(
+			category=main_post.category, status='p'
+		).filter(
+			Q(pub_date__lt=main_post.pub_date) |
+			Q(pub_date=main_post.pub_date, pk__lt=main_post.pk)
+		).order_by('-pub_date', '-pk').first()
+	else:
 		next_post = None
-	try:
-		previous_post = main_post.get_previous_by_pub_date(category=main_post.category)
-		while previous_post.status == 'd':
-			previous_post = previous_post.get_previous_by_pub_date(category=main_post.category)
-	except:
 		previous_post = None
 	
 	view_context = {
@@ -113,7 +127,7 @@ def articles(request, post_id):
 
 	final_context = get_final_context(view_context)
 	if main_post.status != 'd':
-		increasecnt(post_id)
+		Posts.objects.filter(pk=post_id).update(viewcount=F('viewcount') + 1)
 	return render(request, 'main/left-sidebar.html', final_context)
 
 def authors(request, author_id):
@@ -125,7 +139,7 @@ def authors(request, author_id):
 	posts = Posts.objects.filter(author__id=author_id).exclude(status='d').order_by('-viewcount')
 	posts_paginated = paginate_posts(request, posts)
 	
-	if request.is_ajax():
+	if request.headers.get('x-requested-with') == 'XMLHttpRequest':
 		cntx = {
 			'posts_paginated'	: posts_paginated,
 			'main_title'		: main_title,
@@ -234,7 +248,7 @@ def get_title(request):
 	return HttpResponse(image.image.url)
 
 def update_cvs(request):
-	if request.is_ajax() and request.method == 'POST':
+	if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.method == 'POST':
 		body_unicode = request.body.decode('utf-8')
 		json_data = json.loads(body_unicode)
 		keys = list(json_data.keys())
@@ -248,27 +262,23 @@ def update_cvs(request):
 		except IntegrityError:
 			transaction.rollback()
 	return HttpResponse()
-class ImageBatchView(AdminBatchUploadView):      
-	""" Bulk Image Uploading. """
-
-	model = UpImages
-
-	#Media file name
-	media_file_name = 'image'
-
-	#Which fields can be applied in bulk?
-	default_fields = []
-
-	#Which fields can be applied individually?
-	detail_fields = []
-
-	default_values = {}	
 
 
 
 #####################################################
 ################# Views' Functions ##################
 #####################################################
+
+@csrf_exempt
+@login_required
+def tinymce_upload_image(request):
+	if request.method != 'POST' or not request.user.is_staff:
+		return JsonResponse({'error': 'Forbidden'}, status=403)
+	file = request.FILES.get('file')
+	if not file:
+		return JsonResponse({'error': 'No file'}, status=400)
+	path = default_storage.save('images/tinymce/' + file.name, file)
+	return JsonResponse({'location': django_settings.MEDIA_URL + path})
 
 def paginate_posts(request, posts):
 	paginator = Paginator(posts, settings.POSTS_PER_PAGE)

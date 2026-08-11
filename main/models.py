@@ -1,10 +1,10 @@
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils.html import mark_safe
-from django.core.urlresolvers import reverse
+from django.utils.html import format_html, mark_safe
+from django.urls import reverse
 from django.core.exceptions import ObjectDoesNotExist
 
-from ckeditor.fields import RichTextField
+from tinymce.models import HTMLField
 from bs4 import BeautifulSoup
 from PIL import Image
 import html, datetime, logging
@@ -19,9 +19,8 @@ class UpImages(models.Model):
 
 
     def thumbnail(self):
-        return u'<img src="%s"  style="max-width:150px; height:auto; max-height:150px;" />' % self.image.url
+        return format_html('<img src="{}" style="max-width:150px; height:auto; max-height:150px;" />', self.image.url)
     thumbnail.short_description = 'Εικόνα'
-    thumbnail.allow_tags = True
     
     def __str__(self):
         return self.image_title
@@ -32,6 +31,8 @@ class UpImages(models.Model):
         super(UpImages, self).save(*args, **kwargs)
         imagepath = self.image.path
         image = Image.open(imagepath)
+        if image.mode in ('RGBA', 'LA', 'P'):
+            image = image.convert('RGB')
         image.save(imagepath, "JPEG", quality=30)
     
     
@@ -53,7 +54,7 @@ class Posts(models.Model):
         ('p', 'Δημοσιευμένο'),
         ('d', 'Πρόχειρο'),
     )
-    text = RichTextField("Κείμενο", blank=False)
+    text = HTMLField("Κείμενο", blank=False)
     pub_date = models.DateField('Ημερομηνία Ανάρτησης', default=datetime.date.today, null=True, blank=True)
     image = models.ForeignKey(UpImages, on_delete=models.SET_NULL,null=True, blank=True, verbose_name='Εικόνα')
     title = models.CharField('Τίτλος' ,max_length=255, null=True, blank=True)
@@ -65,14 +66,12 @@ class Posts(models.Model):
     
     def thumbnail(self):
         if self.image:
-            return u'<img src="%s" id="thumb" style="max-width:150px; height:auto; max-height:150px;" />' % self.image.image.url
+            return format_html('<img src="{}" id="thumb" style="max-width:150px; height:auto; max-height:150px;" />', self.image.image.url)
         return "Δεν υπάρχει φωτογραφία"
     thumbnail.short_description = 'Εικόνα Κειμένου'
-    thumbnail.allow_tags = True
-    
+
     def show_link(self):
-        return '<a href="%s"> Προβολή Άρθρου </a>' % self.get_absolute_url()
-    show_link.allow_tags = True
+        return format_html('<a href="{}"> Προβολή Άρθρου </a>', self.get_absolute_url())
     show_link.short_description = "-"
     
     def __str__(self):
@@ -96,9 +95,7 @@ class BodyText(models.Model):
 
 
     def activate(self):
-        # This is used to activate a quote through the changelist
-        return "<a href='/activate?q=" + str(self.id) + "' class='grp-add-link grp-state-focus'> Ενεργοποίηση </a> "
-    activate.allow_tags = True
+        return format_html("<a href='/activate?q={}' class='grp-add-link grp-state-focus'> Ενεργοποίηση </a>", self.id)
     activate.short_description = "Ενεργοίηση Παραφοράς"
 
     def save(self, *args, **kwargs):

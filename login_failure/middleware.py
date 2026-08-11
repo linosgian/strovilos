@@ -5,19 +5,15 @@ class RequestProviderError(Exception):
     pass
 
 
-class RequestProvider(object):
-    """
-    This middleware listens for signals sent when
-    user_failed_login signal is triggered. Then sends
-    back the request object.
-    """
-    def __init__(self):
+class RequestProvider:
+    def __init__(self, get_response):
         self._request = None
-        request_accessor.connect(self)
+        self.get_response = get_response
+        request_accessor.connect(self._provide_request)
 
-    def process_request(self, request):
+    def __call__(self, request):
         self._request = request
-        return None
+        return self.get_response(request)
 
-    def __call__(self, **kwargs):
+    def _provide_request(self, **kwargs):
         return self._request

@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from django_batch_uploader.admin import BaseBatchUploadAdmin
 from .models import *
 from .forms import PostsForm
 
@@ -12,10 +11,7 @@ admin.site.index_title = ' '
 
 admin.site.register(Category)
 
-class UpImagesModelAdmin(BaseBatchUploadAdmin):
-	batch_url_name = "admin_image_batch_view"
-
-	# This removes the following fields from both add and change forms
+class UpImagesModelAdmin(admin.ModelAdmin):
 	exclude = ['uploaded_by','image_title', 'upload_date']
 
 	list_display = ('upload_date', 'image_title', 'thumbnail')

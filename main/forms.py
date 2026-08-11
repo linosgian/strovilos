@@ -1,13 +1,11 @@
 from django import forms
 from .models import Posts, UpImages
-from ckeditor_uploader.widgets import CKEditorUploadingWidget
-from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
-from django.db.models.fields.related import ManyToOneRel
+from tinymce.widgets import TinyMCE
 from django.contrib.auth.models import User
 
 class PostsForm(forms.ModelForm):
 	""" Add/Change Post form. """
-	text = forms.CharField(widget=CKEditorUploadingWidget(), label='Κείμενο')
+	text = forms.CharField(widget=TinyMCE(), label='Κείμενο')
 	# The id change on this form field is used to assist the "thumbnails.js" script
 	class Meta:
 		model = Posts
