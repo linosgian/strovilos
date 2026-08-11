@@ -4,13 +4,19 @@ Django settings for strovilos project.
 
 """
 import os
+
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Default ROOT_DIR — overridden by secret_settings in all real deployments
+ROOT_DIR = os.path.dirname(BASE_DIR)
+
 from .secret_settings import *
 from django.utils.translation import gettext_lazy as _
 
 ########################################################################################################
 ######################################## Basic/Custom Settings #########################################
 ########################################################################################################
-#TODO: DEBUG / EMAIL BACKEND / COMPRESS
 
 # Custom Variables
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
@@ -18,12 +24,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 POSTS_PER_PAGE = 10
 TITLE_COUNT = 10
 DESC_COUNT = 28
-
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# Virtualenv DIR
-ROOT_DIR = os.path.dirname(BASE_DIR)
 
 # Static files (CSS, JavaScript, Images)
 # ROOT paths are set in secret_settings
